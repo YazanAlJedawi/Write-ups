@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TargetConfig Name="C:\Users\Yazan\Desktop\arch1001_x86-64_asm_code_for_class-master\binary_bomb_lab\windows\bomb.exe" LastUsed="2025-02-06T19:29:46.2124720Z">
+  <EngineConfig />
+  <EngineOptions>
+    <Property name="DebugChildProcesses" value="false" />
+    <Property name="StartDirectory" value="" />
+  </EngineOptions>
+  <TargetOptions>
+    <Option name="LaunchProcess">
+      <Property name="Executable" value="C:\Users\Yazan\Desktop\arch1001_x86-64_asm_code_for_class-master\binary_bomb_lab\windows\bomb.exe" />
+      <Property name="Arguments" value="C:\Users\Yazan\Desktop\defuse.txt" />
+    </Option>
+  </TargetOptions>
+</TargetConfig>
