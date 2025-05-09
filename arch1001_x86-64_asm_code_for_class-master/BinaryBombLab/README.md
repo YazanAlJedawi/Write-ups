@@ -32,16 +32,12 @@ I assumed that `strings_not_equal` is like the `strcmp` function, comparing our 
 
 If we step up to the call of `strings_not_equal`, we can check the arguments provided to the function. In Microsoft x64’s calling convention, argument 1 is held in the `RCX` register, and argument 2 in the `RDX` register. In WinDBG we can display the `ASCII` string at those addresses with: `da <address>`. For example:
 
-![Screenshot1](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot1.png)
-![Screenshot2](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot2.png)
 
 `strings_not_equal` compares our input to `“I am just a renegade hocky mom.”` As our input is not equal, let’s see what happens if `explode_bomb` is called:
 
-![Screenshot3](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot3.png)
 
 Therefore, we need to input `“I am just a renegade hockey mom.”` to pass `phase_1` (copy directly from WinDBG to avoid any issues):
 
-![Screenshot4](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot4.png)
 
 # Phase 2
 <a name="phase-2"></a>
@@ -63,7 +59,6 @@ In WinDBG we can confirm this in the call to sscanf:
 -	RXC (arg1): 7ff7fb960250
 -	RDX (arg2): 7ff7fb95c460
 
-![Screenshot5](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot5.png)
 
 `sscanf`’s return value is determined by the “number of fields successfully converted and assigned”. So, for our input of `123` that was successfully converted, we received a return value of `1`. Therefore, if we follow the format specification of say:
 
@@ -71,19 +66,16 @@ In WinDBG we can confirm this in the call to sscanf:
 
 It should return `6`. Then, after `CMP`’s second operand `0x6` is subtracted, a jump will occur as `EAX` is now equal to `6`.
 
-![Screenshot6](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot6.png)
 
 Now, we are back to the `phase_2`. If you read through the next instructions, you will see there are two more potential `explode_bomb` triggers until `ret`.
 
 Before the first call to `explode_bomb`, there’s a `JE` that must be taken. `CMP` subtracts the immediate `0x1` from `rbp+rax+28h`’s value. `rbp+rax+28h`’s value is `0x9` (found with the command `db rbp+rax+28h L1`). Specifically, this is 1st number we provided and can be observed in the memory window:
 
-![Screenshot7](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot7.png)
 
 `RAX`’s value is `0`, so it uses `RBP` (`ac80f6f680`) + `28h` to access this value. 
 
 `0x9` minus `0x1` does not yield a result of zero, so the Zero Flag is not set and the jump is not taken. However, if we simply change our input to `1 1 1 1 1 1`, it will work:
 
-![Screenshot8](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot8.png)
 
 If we proceed to step over the next instructions, you will notice a `CMP` and `JGE`, but no subsequent call to `explode_bomb`. In the instructions before this, `0x1` was added to `rbp+4`, and in the subsequent `CMP`, `0x6` is subtracted from `0x1` to determine the outcome of `JGE`. Since these numbers are immediate values, we cannot control this jump, so we have to skip the jump.
 
@@ -99,7 +91,6 @@ In the pointer arithmetic, where `RCX`’s value is `0`, it accesses our first n
 Finally, the `CMP` subtracts `ECX` (now a value of `2`) from `rbp+rax*4+28h`’s value. `RAX`’s value here is `0x1`, so this pointer arithmetic accesses our second number (`1`). Since `1` minus `2` does not equal zero, the jump is not taken. However, setting our second number to `2` would trigger the jump:
 `1 2 1 1 1 1`
 
-![Screenshot9](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot9.png)
 
 If you read through the next few instructions, it becomes apparent that we are in a loop, and to break free from it, we must take the `JGE` mentioned earlier:
 ```asm
@@ -119,7 +110,6 @@ HEX: 1 2 4 8 10 20
 ```
 phase_2 complete!
 
-![Screenshot10](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot10.png)
 
 # Phase 3
 <a name="phase-3"></a>
@@ -131,15 +121,12 @@ If we look through the next instructions, we will find a `CMP` and `JA`, which c
 
 Next, there are several instructions and a jump to `RAX`. `RAX`’s address is calculated through some pointer arithmetic which includes our initial input in `RAX`:
 
-![Screenshot11](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot11.png)
 
 So, my initial thought was to determine the number required to bypass all instances of `explode_bomb`. To achieve this, I subtracted `RCX`'s address (`0x7ff7fb940000`) from the target address I intended to jump to: `0x7ff7fb9522a2` (the instruction beyond the last `explode_bomb`, `LEA`), which resulted in `0x122A2`. I then used the command `dd rcx+x*4+122CCh L1` to assess the jump distance for each input, replacing `x` with our initial numerical input. For instance:
 
-![Screenshot12](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot12.png)
 
 However, it becomes clear that due to the limitation of a maximum input value of `0x7`, we can’t jump as far as `0x122A2`. Our potential jump destinations align with the addresses listed below:
 
-![Screenshot13](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot13.png)
 
 If our initial input were `1`, it would jump to `0x7FF7FB952245` (`0x7ff7fb940000` + `0x12245`). However, it’s unclear why we would want to jump to this address or any of the others. To shed some light on this, let’s search for the calls to `explode_bomb` and work backwards. Two calls to `explode_bomb` can be found, with the first one seemingly always being skipped, and the second with two potential triggers.
 
@@ -157,7 +144,6 @@ For example, if we input `2 2`, we jump to `7FF7FB952250` (calculated as `000122
 
 phase_3 complete!
 
-![Screenshot14](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot14.png)
 
 It should also be noted that if our initial input is `0`, `1`, `2`, `3`, `4`, or `5`, and the second input matches the value stored in `rbp+44`, it will take the jump. For example, the input `1 4294967270` is also acceptable.
 
@@ -174,7 +160,6 @@ There are a series of jumps with the potential to trigger explode_bomb: `JNE` an
 
 `JLE`, if taken, allows us to pass `explode_bomb`. Therefore, our first input (in `rbp+4`) needs to be less than or equal to `0xE` (DEC: `14`).
 
-![Screenshot15](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot15.png)
 
 Next, an immediate of `0xA` is assigned to `rbp+64h`, and an unknown function `func4` is called with the parameters: `RCX` (our first input), `RDX` (`0x0`), `R8` (immediate of `0xE`), and `R9` (`0x1`).
 
@@ -184,7 +169,6 @@ Currently, we know that our first input needs to be less or equal to `0xE` (DEC:
 
 Therefore, we need to step into `func4` in order to understand how we can make the return value become `0xA`:
 
-![Screenshot16](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot16.png)
 
 As previously mentioned, `func4`’s parameters are: `RCX` (our first input), `RDX` (`0x0`), `R8` (`0xE`), and `R9` (`0x1`). They are saved to:
 - `rbp+100h` = `0x3` (our input).
@@ -223,7 +207,6 @@ If we don’t take this jump, `func4` will be called once more. Therefore, in or
 
 `0x3` will be added to `0x7`, and returned to us with `0xA` and allow us to pass the phase:
 
-![Screenshot17](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot17.png)
 
 # Phase 5
 <a name="phase-5"></a>
@@ -257,7 +240,6 @@ mov     dword ptr [rbp+64h],eax
 ```
 If the value is modified to `0xF` *BEFORE* `rbp+4`’s value reaches `0xF`, it will break us out of this loop and `explode_bomb`. Therefore, with the command `dd 00007ff7fb95f1d0+X*4 L1`, let’s view the memory at each of the possible addresses:
 
-![Screenshot18](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot18.png)
 
 `RAX` is equal to our first input (`rbp+64h`), so I just changed `X` to all the first possible inputs (`0x0`-`0xE`).
 
@@ -280,7 +262,7 @@ This is important to consider because `rbp+24h`’s value will be compared again
 
 This means that our second input needs to be the decimal equivalent of hex `73`, so it is decimal `115`:
 
-![Screenshot19](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot19.png)
+
 
 # Phase 6
 <a name="phase-6"></a>
@@ -327,7 +309,6 @@ Is “[`rbp+rax*4+48h`] (first input) `!=` to our second input”?
 
 If we skip this jump it calls `explode_bomb`, so our first input and second input can’t be equal.
 
-![Screenshot20](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot20.png)
 
 Next, we enter a loop which increments `rbp+0E4h` by `0x1` each loop. It needs to loop `5` times in order for `rbp+0E4h`’s value to be equal to `0x6`, so we can take the `JGE` instruction to `00007ff7fb95269c` and break out of the loop. This will require our first input to *not be equal* to any other input. This is because in the `CMP`/`JNE` instructions it uses `rbp+0E4h` which is incremented by `0x1` each time to access our inputs. 
 
@@ -366,7 +347,6 @@ rcx,qword ptr [rbp+28h]
 mov     qword ptr [rbp+rax*8+78h],rcx
 ```
 
-![Screenshot21](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot21.png)
 
 It then loops back around with a jump to `00007ff7fb9526aa` which increments `rbp+0C4h` (`0x0`) by `0x1`, and checks if `rbp+0E4h` is `>=` to our second input. It will continue to save `rbp+28h` value into memory at `rbp+rax*8+78h` *UNTIL* `rbp+0C4h` is incremented to `0x6`. 
 
@@ -374,7 +354,6 @@ It is important to note that if on the first loop, `rbp+0E4h` (`0x1`) was `>=` t
 
 You also may have already noticed, but `7ff7fb95f050`, `7ff7fb95f040`, etc, are addresses, whose value can be viewed as follows:
 
-![Screenshot22](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot22.png)
 
 As previously mentioned, we will eventually take the jump to `00007ff7fb952716`. At this point, I started to search for the exit condition for the phase and found two important details:
 
@@ -398,7 +377,6 @@ As mentioned before, we control the addresses saved to `rbp+78h` and above. Ther
 
 For example, if we review the values saved at each address, we can see `0x3a7` is the highest value:
 
-![Screenshot22](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot22.png)
 
 `0x3a7` corresponds to address `7ff7fb95f010`, and as previously mentioned, `7ff7fb95f010` corresponds to an input of `5`. So, the next highest value is `0x393` at address `7ff7fb95f020`, which corresponds to an input of `4`, and so on:
 
@@ -411,7 +389,6 @@ For example, if we review the values saved at each address, we can see `0x3a7` i
 
 Therefore, our input for `phase_6` is: `5 4 3 1 6 2`:
 
-![Screenshot23](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot23.png)
 
 Bomb defused!
 
@@ -436,7 +413,6 @@ This means that we need to have passed `phase_6` in order to skip the `JNE`.
 
 In the next section of `phase_defused`, you can see there is another `JNE` which we need to skip in order call `secret_phase`:
 
-![Screenshot24](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot24.png)
 
 ```asm
 call    bomb!ILT+705(sscanf) (00007ff7`fb9512c6)
@@ -448,7 +424,6 @@ Is the return value from `sscanf`  `!=` to `3`?
 
 So, let’s take a look at `sscanf`’s parameters:
 
-![Screenshot25](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot25.png)
 
 Our input for `phase_4` was `3 10`. `sscanf` reads this data from a buffer, following the format specification provided in the second parameter. In `phase_4`, the format specification is `%d %d`. However, the format specification here is `%d %d %s`.
 
@@ -458,13 +433,8 @@ This implies that even if we provide input like `3 10 test` it won’t interfere
 
 In the next section of `phase_defused`, our string assigned from `sscanf` (`test`) is compared to another string in the `strings_not_equal` function:
 
-![Screenshot26](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot26.png)
-
-![Screenshot27](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot27.png)
-
 It compares our input to the string `DrEvil`. So, let’s switch our input to that:
 
-![Screenshot28](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot28.png)
 
 It appears we’re presented with another challenge, so let’s step into the `secret_phase`.
 
@@ -572,7 +542,6 @@ Here is the exact path:
 
 This guarantees a return value of `0x5` to successfully defuse the secret phase.
 
-![Screenshot29](https://github.com/theokwebb/my-writeups/blob/main/BinaryBomb/Images/Screenshot29.png)
 
 #
 
