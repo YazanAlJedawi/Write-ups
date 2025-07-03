@@ -543,6 +543,3 @@ Here is the exact path:
 This guarantees a return value of `0x5` to successfully defuse the secret phase.
 
 
-#
-
-Thank you to Bryant & O'Hallaron at [Carnegie Mellon University]( http://csapp.cs.cmu.edu/3e/home.html) for this enjoyable lab and Xeno at [OpenSecurityTraining2](https://ost2.fyi) for the incredible [Architecture 1001: x86-64 Assembly](https://ost2.fyi/Arch1001) course.
