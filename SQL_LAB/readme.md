@@ -53,6 +53,7 @@ My team wants to update the computers for certain employees in the Marketing dep
 
 
 The following code demonstrates how I created a SQL query to filter for employee machines from employees in the Marketing department in the East building.
+
 ![screen.1](screenshots/sql4.png)
 
   
